@@ -1,9 +1,26 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import DeleteButton from "../_components/DeleteButton";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+// generateMetadata: 페이지와 동일한 params를 받아서 Metadata 반환
+// Next.js가 <head>에 자동으로 주입함 (서버에서 실행)
+// DB 조회가 페이지 컴포넌트와 중복되어도 Next.js가 요청을 자동으로 캐싱(메모이제이션)
+export async function generateMetadata({
+    params,
+}: {
+    params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+    const { id } = await params;
+    const user = await prisma.user.findUnique({ where: { id: Number(id) } });
+    return {
+        title: user?.name ?? "멤버 없음",
+        // layout의 template이 적용되어 "Minji | 멤버 관리" 형태가 됨
+    };
+}
 
 export default async function MemberPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;

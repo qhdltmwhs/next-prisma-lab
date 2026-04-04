@@ -1,11 +1,33 @@
 "use client"
 
-import { useState, useActionState } from "react";
+import { useReducer, useActionState } from "react";
 import { createUser, updateUser } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { User } from "@/app/generated/prisma/client";
+
+// 폼 전체 상태를 하나의 타입으로 정의
+type FormState = {
+    name: string;
+    email: string;
+    role: string;
+    imageUrl: string;
+};
+
+// 어떤 액션이 가능한지 타입으로 명시
+// SET_FIELD: 특정 필드의 값을 바꿈
+type Action = { type: "SET_FIELD"; field: keyof FormState; value: string };
+
+// reducer: (현재 상태, 액션) → 새 상태
+// switch로 액션 종류마다 다른 처리
+function reducer(state: FormState, action: Action): FormState {
+    switch (action.type) {
+        case "SET_FIELD":
+            // [action.field]: 계산된 프로퍼티명 — 어떤 필드든 하나로 처리
+            return { ...state, [action.field]: action.value };
+    }
+}
 
 type Props = {
     user?: User;
@@ -19,8 +41,25 @@ export default function MemberForm({ user }: Props) {
         { error: "" }
     );
 
-    const [name, setName] = useState(user?.name ?? "");
-    const nameError = name.trim() === "" ? "이름은 필수입니다" : "";
+    // useReducer: useState 여러 개 대신 하나의 reducer로 폼 상태 통합 관리
+    // useState였다면: const [name, setName] = useState(...) x4
+    const [fields, dispatch] = useReducer(reducer, {
+        name: user?.name ?? "",
+        email: user?.email ?? "",
+        role: user?.role ?? "",
+        imageUrl: user?.imageUrl ?? "",
+    });
+
+    // 유효성 검사: 렌더링할 때마다 계산 (파생 상태)
+    const nameError = fields.name.trim() === "" ? "이름은 필수입니다" : "";
+    const emailError = fields.email && !fields.email.includes("@") ? "올바른 이메일을 입력하세요" : "";
+    const hasError = !!nameError || !!emailError;
+
+    // 필드 변경 핸들러: 어떤 필드든 하나로 처리
+    function handleChange(field: keyof FormState) {
+        return (e: React.ChangeEvent<HTMLInputElement>) =>
+            dispatch({ type: "SET_FIELD", field, value: e.target.value });
+    }
 
     return (
         <form action={formAction} className="space-y-4">
@@ -31,14 +70,21 @@ export default function MemberForm({ user }: Props) {
                     id="name"
                     name="name"
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={fields.name}
+                    onChange={handleChange("name")}
                 />
                 {nameError && <p className="text-sm text-red-500">{nameError}</p>}
             </div>
             <div className="space-y-1">
                 <Label htmlFor="email">이메일</Label>
-                <Input id="email" name="email" type="email" defaultValue={user?.email ?? ""} />
+                <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={fields.email}
+                    onChange={handleChange("email")}
+                />
+                {emailError && <p className="text-sm text-red-500">{emailError}</p>}
             </div>
             <div className="space-y-1">
                 <Label htmlFor="role">역할</Label>
@@ -47,7 +93,8 @@ export default function MemberForm({ user }: Props) {
                     name="role"
                     type="text"
                     placeholder="예: 보컬, 댄서, 래퍼"
-                    defaultValue={user?.role ?? ""}
+                    value={fields.role}
+                    onChange={handleChange("role")}
                 />
             </div>
             <div className="space-y-1">
@@ -57,11 +104,12 @@ export default function MemberForm({ user }: Props) {
                     name="imageUrl"
                     type="text"
                     placeholder="https://..."
-                    defaultValue={user?.imageUrl ?? ""}
+                    value={fields.imageUrl}
+                    onChange={handleChange("imageUrl")}
                 />
             </div>
             {state.error && <p className="text-sm text-red-500">{state.error}</p>}
-            <Button type="submit" disabled={!!nameError || isPending} className="w-full">
+            <Button type="submit" disabled={hasError || isPending} className="w-full">
                 {isPending ? "처리 중..." : isEdit ? "저장" : "추가"}
             </Button>
         </form>
