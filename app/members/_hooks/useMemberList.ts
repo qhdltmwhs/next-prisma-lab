@@ -1,10 +1,7 @@
-import { useState, useOptimistic, useTransition } from "react";
+import { useState, useOptimistic, useTransition, useMemo, useCallback } from "react";
 import { deleteUser } from "@/app/actions";
 import type { User } from "@/app/generated/prisma/client";
 
-// Custom Hook: "use" 접두사로 시작해야 React가 훅으로 인식
-// 내부에서 다른 훅(useState, useOptimistic, useTransition)을 자유롭게 호출 가능
-// → 로직만 추출, UI는 없음 (JSX 반환 X)
 export function useMemberList(users: User[]) {
     const [search, setSearch] = useState("");
 
@@ -16,20 +13,26 @@ export function useMemberList(users: User[]) {
 
     const [isPending, startTransition] = useTransition();
 
-    function handleDelete(id: number) {
+    // useCallback: 함수를 메모이제이션 — 의존값이 바뀔 때만 새 함수 생성
+    // deps 없음([]) → 마운트 시 한 번만 생성, 이후 항상 같은 참조
+    // deleteOptimistic, startTransition 은 React가 안정성 보장 → deps 생략 가능
+    const handleDelete = useCallback((id: number) => {
         startTransition(async () => {
             deleteOptimistic(id);
             const formData = new FormData();
             formData.set("id", String(id));
             await deleteUser(formData);
         });
-    }
+    }, [deleteOptimistic]);
 
-    // 검색 필터링: 파생 상태 (별도 state 불필요)
-    const filtered = optimisticUsers.filter((user) =>
-        user.name?.toLowerCase().includes(search.toLowerCase()),
+    // useMemo: 계산 결과를 메모이제이션 — 의존값이 바뀔 때만 재계산
+    // optimisticUsers 또는 search 가 바뀔 때만 filter 재실행
+    const filtered = useMemo(
+        () => optimisticUsers.filter((user) =>
+            user.name?.toLowerCase().includes(search.toLowerCase()),
+        ),
+        [optimisticUsers, search],
     );
 
-    // 컴포넌트에서 필요한 것만 반환
     return { search, setSearch, filtered, handleDelete, isPending };
 }

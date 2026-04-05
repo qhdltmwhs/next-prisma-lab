@@ -1,6 +1,6 @@
 "use client"
 
-import { useReducer, useActionState } from "react";
+import { useReducer, useActionState, useCallback } from "react";
 import { createUser, updateUser } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,11 +55,12 @@ export default function MemberForm({ user }: Props) {
     const emailError = fields.email && !fields.email.includes("@") ? "올바른 이메일을 입력하세요" : "";
     const hasError = !!nameError || !!emailError;
 
-    // 필드 변경 핸들러: 어떤 필드든 하나로 처리
-    function handleChange(field: keyof FormState) {
+    // useCallback: dispatch는 React가 안정성 보장 → deps []
+    // handleChange 자체가 안정적이어야 Input에 넘길 때 불필요한 리렌더 방지
+    const handleChange = useCallback((field: keyof FormState) => {
         return (e: React.ChangeEvent<HTMLInputElement>) =>
             dispatch({ type: "SET_FIELD", field, value: e.target.value });
-    }
+    }, []);
 
     return (
         <form action={formAction} className="space-y-4">
