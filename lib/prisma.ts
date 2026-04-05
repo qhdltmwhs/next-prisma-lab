@@ -21,8 +21,7 @@ const globalForPrisma = globalThis as unknown as {
 
 // 전역에 이미 prisma가 있으면 재사용, 없으면 새로 생성
 // ?? 는 null/undefined일 때만 오른쪽을 실행하는 연산자
-export const prisma =
-  globalForPrisma.prisma ?? createPrismaClient();
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 // production에서는 서버가 재시작되지 않으므로 캐싱 불필요
 // development에서는 코드 변경 시 핫리로드가 발생하는데,
