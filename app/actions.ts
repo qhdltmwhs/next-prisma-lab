@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 const UserSchema = z.object({
@@ -43,11 +44,13 @@ export async function createUser(_prevState: { error: string }, formData: FormDa
 export async function deleteUser(formData: FormData) {
     const id = Number(formData.get("id"));
 
-    await prisma.user.delete({
-        where: { id },
-    });
+    try {
+        await prisma.user.delete({ where: { id } });
+    } catch {
+        return; // optimistic UI가 이미 처리 — 조용히 실패
+    }
 
-    redirect("/");
+    revalidatePath("/"); // full navigation 없이 목록만 갱신
 }
 
 export async function updateUser(_prevState: { error: string }, formData: FormData) {
